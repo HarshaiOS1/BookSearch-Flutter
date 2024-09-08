@@ -1,72 +1,116 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'HomePage.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
-  // This widget is the root of your application.
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  Locale _locale = const Locale('en');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocale();
+  }
+  
+  Future<void> _loadLocale() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? languageCode = prefs.getString('languageCode');
+    if (languageCode != null) {
+      setState(() {
+        _locale = Locale(languageCode);
+      });
+    }
+  }
+  
+  void _changeLanguage(Locale locale) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('languageCode', locale.languageCode); // Persist language
+    setState(() {
+      _locale = locale;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      locale: _locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: MyHomePage(title: 'Search Book'),
+      home: CustomBottomNavigationBar(onLocaleChange: _changeLanguage),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class CustomBottomNavigationBar extends StatefulWidget {
+  final Function(Locale) onLocaleChange;
 
-  final String title;
+  const CustomBottomNavigationBar({super.key, required this.onLocaleChange});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<CustomBottomNavigationBar> createState() =>
+      _CustomBottomNavigationBarState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _CustomBottomNavigationBarState extends State<CustomBottomNavigationBar> {
+  int _selectedIndex = 0;
 
-  void _incrementCounter() {
+  static const TextStyle optionStyle =
+      TextStyle(fontSize: 30, fontWeight: FontWeight.bold);
+
+  List<Widget> get _widgetOptions => <Widget>[
+        HomePage(onLocaleChange: widget.onLocaleChange),
+        const Text(
+          'Index 1: Business',
+          style: optionStyle,
+        ),
+        const Text(
+          'Index 2: School',
+          style: optionStyle,
+        ),
+      ];
+
+  void _onItemTapped(int index) {
     setState(() {
-      _counter++;
+      _selectedIndex = index;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-          title: Text(widget.title,
-              style: const TextStyle(
-                  color: Colors.black, fontWeight: FontWeight.bold))),
       body: Center(
-          child: Localizations.override(
-              context: context,
-              locale: const Locale('es'),
-              child: Builder(builder: (context) {
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Text(AppLocalizations.of(context)!.helloWorld),
-                    const Text(
-                      'You have pushed the button this many times:',
-                    ),
-                    Text(
-                      '$_counter',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                  ],
-                );
-              }))),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+        child: _widgetOptions.elementAt(_selectedIndex),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.business),
+            label: 'Business',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.school),
+            label: 'School',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.amber[800],
+        onTap: _onItemTapped,
+      ),
     );
   }
 }
